@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { ScrollView } from 'react-native-gesture-handler';
+import service from './database/service';
 
 const fruitsData = [
   { name: 'Apple', image: require('../rsc/images/apple.png'), points: 10 },
@@ -30,7 +31,7 @@ const progress = 40;
   const [correctGuess, setCorrectGuess] = useState(null);
   const [options, setOptions] = useState([]);
   const [showModal, setShowModal] = useState(false);
-
+  const [lastScore, setLastScore] = useState(0);
   const generateRandomFruits = (level) => {
     let min, max;
 
@@ -99,23 +100,45 @@ const progress = 40;
     return array;
   };
 
-  // Function to handle user's guess
-  const handleGuess = (guess) => {
+  const handleGuess = async (guess) => {
     if (guess === fruits.length) {
       setCorrectGuess(fruits.length);
-      setScore(score + 10); 
+      const newScore = score + 10;
+
+      setScore(newScore);
       setShowModal(true);
+      try {
+        await service.saveHighScore(level, newScore);
+      } catch (error) {
+        console.error('Error saving high score:', error);
+      }
       setTimeout(() => {
         setShowModal(false);
-        generateRandomFruits(); 
-      }, 7000); 
+        generateRandomFruits();
+      }, 7000);
     }
   };
+//fetch last highscore 
+const fetchLastScore = async () => {
+  try {
+    if (!service.db) {
+      console.error('Database not properly initialized.');
+      return;
+    }
 
+    const lastScore = await service.getHighestScore(level);
+    setScore(lastScore);
+    setLastScore(lastScore);
+  } catch (error) {
+    console.error('Error fetching last score:', error);
+  }
+};
   useEffect(() => {
     generateRandomFruits(level);
     Orientation.lockToLandscape();
+    fetchLastScore();
   }, [])
+  
 
   // Custom component for Congratulations message
   const CongratulationsMessage = () => (
@@ -139,7 +162,7 @@ const progress = 40;
         width={7}
         fill={score}
         tintColor="#7918F0"
-        onAnimationComplete={() => console.log('onAnimationComplete')}
+        onAnimationComplete={() => {}}
         backgroundColor="#FFFFFF"
         style={styles.marks}
       >
